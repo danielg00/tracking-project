@@ -186,7 +186,7 @@ def main():
     cur_frame = 0
     batch_size = 40  # how much frames we process at once
     total_batches = max(1, int(FRAME_COUNT/batch_size))
-    total_batches = 4
+    # total_batches = 4
     codec = cv.VideoWriter_fourcc(*'MJPG')
     new_fname = FNAME + '_TRACKED.mp4'
     writer = cv.VideoWriter(new_fname, codec, FPS, (XDIM, YDIM))
