@@ -10,7 +10,9 @@ from scipy.ndimage import gaussian_laplace as gf
 
 import tqdm
 
-import sys 
+import sys
+import multiprocessing
+from multiprocessing import Pool
 
 FNAME = sys.argv[1]
 VID = cv.VideoCapture(FNAME)
@@ -73,6 +75,10 @@ def write_batch(frames, writer):
     for f in frames:
         writer.write(f)
 
+def num_points(x):  # 1st argument is img and second is scale
+    img_u = to_uint8(gf(x[0], x[1]))
+    return len(blob.detect(img_u))
+
 
 def vid2array(n_frames):
     """ Takes n_frames frames from video stream and converts
@@ -87,19 +93,14 @@ def vid2array(n_frames):
 
 
 def find_scale(img, t0=0, t1=7):
-    """ Using a gauss-laplace filter, we progressively
-    increase the std and count how many blobs detected. We then
-    return the minimum amount of blobs after the maximum"""
-    num_points = []
-    T = np.linspace(t0, t1, 20)
+    n_points = []; T = np.linspace(t0, t1, 20)
+   
+    with Pool(multiprocessing.cpu_count()) as p:
+        n_points = p.map(num_points, list(zip([img]*20, T)))
 
-    for scale in T:
-        img_u = to_uint8(gf(img, scale))
-        num_points.append(len(blob.detect(img_u)))
-
-    x1 = np.argmax(num_points)
-    x2 = np.argmin(num_points[x1:]) + x1
-    
+    x1 = np.argmax(n_points)
+    x2 = np.argmin(n_points[x1:]) + x1
+   
     return T[x2]
 
 
@@ -186,7 +187,7 @@ def main():
     cur_frame = 0
     batch_size = 40  # how much frames we process at once
     total_batches = max(1, int(FRAME_COUNT/batch_size))
-    # total_batches = 4
+    total_batches = 4
     codec = cv.VideoWriter_fourcc(*'MJPG')
     new_fname = FNAME + '_TRACKED.mp4'
     writer = cv.VideoWriter(new_fname, codec, FPS, (XDIM, YDIM))
