@@ -83,8 +83,8 @@ def num_points(x):  # 1st argument is img and second is scale
 def vid2array(n_frames):
     """ Takes n_frames frames from video stream and converts
     to numpy array of dimensions (n_frames, YDIM, XDIM) """
+    
     array = np.empty((n_frames, YDIM, XDIM), dtype="uint8")
-
     for i in range(n_frames):
         _, frame = VID.read()  ## put assert dim here just in case
         array[i] = cv.cvtColor(cv.resize(frame, (XDIM, YDIM)), cv.COLOR_BGR2GRAY)
@@ -93,8 +93,11 @@ def vid2array(n_frames):
 
 
 def find_scale(img, t0=0, t1=7):
+    """ Using a gauss-laplace filter, we progressively
+    increase the std and count how many blobs detected. We then
+    return the minimum amount of blobs after the maximum"""
+    
     n_points = []; T = np.linspace(t0, t1, 20)
-   
     with Pool(multiprocessing.cpu_count()) as p:
         n_points = p.map(num_points, list(zip([img]*20, T)))
 
@@ -135,13 +138,13 @@ def compute_write_coords(n_frames, writer, init_coords=None):
 
 
 def track_ps_t(init_coords, coords, lookahead=3):
-    """ Pretty rudimentary path finding method. Simply takes looks for the
-    nearest coordinte in the next n 'lookahead' frames for each coordinate for a frames. 
-    The initial points of the  paths will always come from the first index of 
+    """ Pretty rudimentary path finding method. Simply looks for the
+    nearest coordinte in the next n 'lookahead' frames for each coordinate for a frame.
+    The initial points of the  paths will always come from the first index of
     coords, so how many  paths calulated will be len(coords[0]). """
     paths = []
     if init_coords != None:
-        coords = [init_coords, *coords]
+        coords = [*init_coords, *coords]
         
     for c_init in coords[0]:
         chain = []
@@ -197,7 +200,7 @@ def main():
         for i in tqdm.tqdm(range(total_batches)):
             if (FRAME_COUNT - cur_frame) <= 2*batch_size:
                 batch_size = FRAME_COUNT - cur_frame
-                l = compute_write_coords(batch_size-1, writer, cur_coords)
+                compute_write_coords(batch_size-1, writer, cur_coords)
                 break
 
             else:
